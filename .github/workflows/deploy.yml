@@ -1,4 +1,4 @@
-name: Build and Deploy to GitHub Pages
+name: Build and Publish to main/docs (GitHub Pages)
 
 on:
   push:
@@ -10,18 +10,20 @@ permissions:
   contents: write
 
 jobs:
-  build-deploy:
+  build-and-publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install
+      - name: Install dependencies
         run: npm install
 
       - name: Build
@@ -29,9 +31,30 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
+      - name: Commit built site to main/docs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          # ensure we're on the main branch
+          git fetch origin main:main
+          git switch main
+          rm -rf docs || true
+          mkdir -p docs
+          cp -r dist/. docs/
+
+          # configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # commit if there are changes
+          git add docs
+          if git diff --cached --quiet; then
+            echo "No changes to docs, nothing to commit"
+          else
+            git commit -m "chore(pages): update site docs from build (${GITHUB_SHA})"
+            git push origin main
+          fi
+
+      - name: Finished
+        run: echo "Build and publish to main/docs completed"
