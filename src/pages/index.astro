@@ -72,14 +72,14 @@ const buildTimeUTC = `${fmt.format(buildTime)} UTC`;
     <main>
       <h1>NFL Simulation Standings</h1>
       {lastCommitDateFormatted ? (
-        <p class="timestamp">Data last updated (commit): {lastCommitDateFormatted}</p>
+        <p class="timestamp">Data last updated: {lastCommitDateFormatted}</p>
       ) : (
         <p class="timestamp">Data last updated: unavailable — site built at {buildTimeUTC}</p>
       )}
 
       <StandingsTable data={data ?? []} lastUpdated={lastCommitDateFormatted} />
 
-      <p style="margin-top: 1rem; color: #666; font-size: 0.9rem;">Note: values are decimal odds from the simulator.</p>
+      <p style="margin-top: 1rem; color: #666; font-size: 0.9rem;"></p>
     </main>
   </body>
 </html>
