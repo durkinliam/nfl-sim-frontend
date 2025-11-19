@@ -1,0 +1,50 @@
+---
+// Props: data: Array of objects
+const { data } = Astro.props;
+
+function fmt(v) {
+  if (v === undefined || v === null || Number.isNaN(Number(v))) return 'N/A';
+  return Number(v).toFixed(2);
+}
+---
+
+<style is:global>
+@import '../styles/standings.css';
+</style>
+
+<div>
+  <div class="table-wrap">
+    {data && data.length > 0 ? (
+      <table class="standings">
+        <thead>
+          <tr>
+            <th>Conf</th>
+            <th>Division</th>
+            <th>Team</th>
+            <th>wins</th>
+            <th>make_playoffs</th>
+            <th>win_div</th>
+            <th>win_conf</th>
+            <th>win_sb</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr>
+              <td>{row.conf ?? 'N/A'}</td>
+              <td>{row.division ?? 'N/A'}</td>
+              <td>{row.team ?? 'N/A'}</td>
+              <td>{fmt(row.wins)}</td>
+              <td>{fmt(row.make_playoffs)}</td>
+              <td>{fmt(row.win_div)}</td>
+              <td>{fmt(row.win_conf)}</td>
+              <td>{fmt(row.win_sb)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    ) : (
+      <div class="empty-msg">Data currently unavailable — please try again later.</div>
+    )}
+  </div>
+</div>
