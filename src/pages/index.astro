@@ -5,6 +5,7 @@ const RAW_URL = 'https://raw.githubusercontent.com/durkinliam/nfl-sim-r/refs/hea
 const COMMITS_API = 'https://api.github.com/repos/durkinliam/nfl-sim-r/commits?path=outright_output.json&per_page=1';
 
 let data = null;
+let lastCommitDateFormatted = null;
 const buildTime = new Date();
 
 // formatter for verbose British UTC with seconds
