@@ -13,24 +13,40 @@ function fmt(v) {
 </style>
 
 <div>
+  <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+    <span style="font-size:0.95rem; color:#444;">Sort:</span>
+    <button id="defaultSortBtn" type="button" class="sort-btn">Win Division</button>
+    <button id="winConfBtn" type="button" class="sort-btn">Win Conference</button>
+    <button id="winSbBtn" type="button" class="sort-btn">Win Super Bowl</button>
+  </div>
+
   <div class="table-wrap">
     {data && data.length > 0 ? (
-      <table class="standings">
+      <table class="standings" id="standingsTable">
         <thead>
           <tr>
-            <th>Conf</th>
-            <th>Division</th>
-            <th>Team</th>
-            <th>wins</th>
-            <th>make_playoffs</th>
-            <th>win_div</th>
-            <th>win_conf</th>
-            <th>win_sb</th>
+            <th data-key="conf" class="sortable" scope="col" aria-sort="none">Conference</th>
+            <th data-key="division" class="sortable" scope="col" aria-sort="none">Division</th>
+            <th data-key="team" class="sortable" scope="col" aria-sort="none">Team</th>
+            <th data-key="wins" class="sortable" scope="col" aria-sort="none">Regular Season Wins</th>
+            <th data-key="make_playoffs" class="sortable" scope="col" aria-sort="none">Make Playoffs</th>
+            <th data-key="win_div" class="sortable" scope="col" aria-sort="none">Win Division</th>
+            <th data-key="win_conf" class="sortable" scope="col" aria-sort="none">Win Conference</th>
+            <th data-key="win_sb" class="sortable" scope="col" aria-sort="none">Win Super Bowl</th>
           </tr>
         </thead>
         <tbody>
           {data.map((row) => (
-            <tr>
+            <tr
+              data-conf={row.conf ?? ''}
+              data-division={row.division ?? ''}
+              data-team={row.team ?? ''}
+              data-wins={row.wins ?? ''}
+              data-make-playoffs={row.make_playoffs ?? ''}
+              data-win-div={row.win_div ?? ''}
+              data-win-conf={row.win_conf ?? ''}
+              data-win-sb={row.win_sb ?? ''}
+            >
               <td>{row.conf ?? 'N/A'}</td>
               <td>{row.division ?? 'N/A'}</td>
               <td>{row.team ?? 'N/A'}</td>
@@ -48,3 +64,142 @@ function fmt(v) {
     )}
   </div>
 </div>
+
+<script type="module">
+// Client-side sorting for the standings table
+(function(){
+  const table = document.getElementById('standingsTable');
+  if (!table) return;
+  const thead = table.querySelector('thead');
+  const tbody = table.querySelector('tbody');
+  const headerCells = Array.from(thead.querySelectorAll('th.sortable'));
+
+  // Build a rows array with parsed values and reference to the tr
+  const rows = Array.from(tbody.querySelectorAll('tr')).map((tr) => {
+    const ds = tr.dataset;
+    return {
+      tr,
+      values: {
+        conf: ds.conf ?? '',
+        division: ds.division ?? '',
+        team: ds.team ?? '',
+        wins: ds.wins ?? '',
+        make_playoffs: ds.makePlayoffs ?? ds['makePlayoffs'] ?? ds['make-playoffs'] ?? ds['make_playoffs'] ?? ds['makePlayoffs'] ?? '',
+        win_div: ds.winDiv ?? ds['win-div'] ?? ds['win_div'] ?? ds['win_div'] ?? ds['winDiv'] ?? '',
+        win_conf: ds.winConf ?? ds['win-conf'] ?? ds['win_conf'] ?? ds['win_conf'] ?? ds['winConf'] ?? '',
+        win_sb: ds.winSb ?? ds['win-sb'] ?? ds['win_sb'] ?? ds['win_sb'] ?? ds['winSb'] ?? ''
+      }
+    };
+  });
+
+  // Helper: parse numeric, treat missing or NaN as Infinity
+  function parseNumeric(v) {
+    if (v === undefined || v === null || v === '') return Infinity;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : Infinity;
+  }
+
+  // Helper: compare two rows by a key and dir
+  function compareByKey(a, b, key, dir = 1) {
+    const av = a.values[key];
+    const bv = b.values[key];
+    // numeric keys
+    if (['wins','make_playoffs','win_div','win_conf','win_sb'].includes(key)) {
+      const an = parseNumeric(av);
+      const bn = parseNumeric(bv);
+      return dir * (an - bn);
+    }
+    // string compare
+    return dir * String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+  }
+
+  // State
+  let sortKeys = ['division', 'win_div'];
+  let sortDirs = [1, 1]; // 1 = asc, -1 = desc
+
+  function applySort() {
+    // sort a copy and re-append rows
+    const copy = rows.slice();
+    copy.sort((a, b) => {
+      for (let i = 0; i < sortKeys.length; i++) {
+        const k = sortKeys[i];
+        const d = sortDirs[i] ?? 1;
+        const cmp = compareByKey(a, b, k, d);
+        if (cmp !== 0) return cmp;
+      }
+      return 0;
+    });
+
+    // update ARIA and classes on headers (only primary key marked)
+    headerCells.forEach((th) => {
+      th.classList.remove('sorted-asc', 'sorted-desc');
+      th.setAttribute('aria-sort', 'none');
+    });
+    const primaryKey = sortKeys[0];
+    const primaryDir = sortDirs[0];
+    const primaryTh = headerCells.find(h => h.dataset.key === primaryKey);
+    if (primaryTh) {
+      primaryTh.classList.add(primaryDir === 1 ? 'sorted-asc' : 'sorted-desc');
+      primaryTh.setAttribute('aria-sort', primaryDir === 1 ? 'ascending' : 'descending');
+    }
+
+    // Rebuild tbody
+    const frag = document.createDocumentFragment();
+    copy.forEach((r) => frag.appendChild(r.tr));
+    // Clear and append
+    tbody.innerHTML = '';
+    tbody.appendChild(frag);
+  }
+
+  // Initial sort: default grouping by division then win_div (both asc)
+  applySort();
+
+  // Header click handlers
+  headerCells.forEach((th) => {
+    const key = th.dataset.key;
+    th.addEventListener('click', () => {
+      if (key === sortKeys[0]) {
+        // toggle primary direction
+        sortDirs[0] = -sortDirs[0];
+      } else {
+        // if clicking division, set multi-key with win_div secondary
+        if (key === 'division') {
+          sortKeys = ['division', 'win_div'];
+          sortDirs = [1, 1];
+        } else if (key === 'win_conf' || key === 'win_sb') {
+          // replace entirely
+          sortKeys = [key];
+          sortDirs = [1];
+        } else {
+          // single-column sort for clicked key
+          sortKeys = [key];
+          sortDirs = [1];
+        }
+      }
+      applySort();
+    });
+  });
+
+  // Buttons for explicit sorts
+  const defaultBtn = document.getElementById('defaultSortBtn');
+  const winConfBtn = document.getElementById('winConfBtn');
+  const winSbBtn = document.getElementById('winSbBtn');
+
+  if (defaultBtn) defaultBtn.addEventListener('click', () => {
+    sortKeys = ['division', 'win_div'];
+    sortDirs = [1, 1];
+    applySort();
+  });
+  if (winConfBtn) winConfBtn.addEventListener('click', () => {
+    sortKeys = ['win_conf'];
+    sortDirs = [1];
+    applySort();
+  });
+  if (winSbBtn) winSbBtn.addEventListener('click', () => {
+    sortKeys = ['win_sb'];
+    sortDirs = [1];
+    applySort();
+  });
+
+})();
+</script>
