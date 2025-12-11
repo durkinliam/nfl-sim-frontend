@@ -26,7 +26,7 @@ npm run build
 How to trigger CI deploy
 - Push to the `main` branch. The workflow `Build and Publish to gh-pages` (in `.github/workflows/deploy-gh-pages.yml`) runs on every push to `main` and on a daily schedule as configured.
 
-How to verify the publish
+How to verify the publishing
 1. In Actions (GitHub UI) open the workflow run triggered by your push. Check these steps:
    - `Build` ran successfully and `List built files (debug)` shows `dist/index.html`.
    - `Deploy to gh-pages` completed successfully.
