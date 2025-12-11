@@ -1,5 +1,6 @@
 ---
 import StandingsTable from '../components/StandingsTable.astro';
+import '../styles/standings.css';
 
 const RAW_URL = 'https://raw.githubusercontent.com/durkinliam/nfl-sim-r/refs/heads/main/outright_output.json';
 const COMMITS_API = 'https://api.github.com/repos/durkinliam/nfl-sim-r/commits?path=outright_output.json&per_page=1';
@@ -26,7 +27,7 @@ async function safeFetchJson(url, opts) {
 
 // fetch data and commit info at build time
 try {
-  const raw = await safeFetchJson(RAW_URL);
+  const raw = await safeFetchJson(RAW_URL, undefined);
   if (raw && Array.isArray(raw)) {
     // ensure numeric fields are numbers where possible
     data = raw.map((r) => ({ ...r }));
@@ -70,7 +71,6 @@ const buildTimeUTC = `${fmt.format(buildTime)} UTC`;
   </head>
   <body>
     <main>
-      <h1>NFL Simulation Standings</h1>
       {lastCommitDateFormatted ? (
         <p class="timestamp">Data last updated: {lastCommitDateFormatted}</p>
       ) : (

@@ -1,31 +1,35 @@
 ---
-// Props: data: Array of objects
+// Props: data: Array<Record<string, any>>
 const { data } = Astro.props;
 
-function fmt(v) {
-  if (v === undefined || v === null || Number.isNaN(Number(v))) return 'N/A';
-  return Number(v).toFixed(2);
+function fmt(v: unknown): string {
+  const n = Number(v);
+  if (v === undefined || v === null || !Number.isFinite(n)) return 'Inf';
+  return n.toFixed(2);
+}
+
+function teamSlug(team: unknown): string {
+  if (!team) return '';
+  return String(team)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 ---
 
-<style is:global>
-@import '../styles/standings.css';
-</style>
-
-<div>
-  <div style="margin-bottom:0.5rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-    <span style="font-size:0.95rem; color:#444;">Sort:</span>
+<div class="standings">
+  <div class="actions">
     <button id="defaultSortBtn" type="button" class="sort-btn">Win Division</button>
     <button id="winConfBtn" type="button" class="sort-btn">Win Conference</button>
     <button id="winSbBtn" type="button" class="sort-btn">Win Super Bowl</button>
   </div>
 
   <div class="table-wrap">
-    {data && data.length > 0 ? (
-      <table class="standings" id="standingsTable">
+    {Array.isArray(data) && data.length > 0 ? (
+      <table class="standings">
         <thead>
           <tr>
-            <th data-key="conf" class="sortable" scope="col" aria-sort="none">Conference</th>
+            <th data-key="conf" class="sortable" scope="col" aria-sort="none">Conf</th>
             <th data-key="division" class="sortable" scope="col" aria-sort="none">Division</th>
             <th data-key="team" class="sortable" scope="col" aria-sort="none">Team</th>
             <th data-key="wins" class="sortable" scope="col" aria-sort="none">Regular Season Wins</th>
@@ -36,27 +40,39 @@ function fmt(v) {
           </tr>
         </thead>
         <tbody>
-          {data.map((row) => (
-            <tr
-              data-conf={row.conf ?? ''}
-              data-division={row.division ?? ''}
-              data-team={row.team ?? ''}
-              data-wins={row.wins ?? ''}
-              data-make-playoffs={row.make_playoffs ?? ''}
-              data-win-div={row.win_div ?? ''}
-              data-win-conf={row.win_conf ?? ''}
-              data-win-sb={row.win_sb ?? ''}
-            >
-              <td>{row.conf ?? 'N/A'}</td>
-              <td>{row.division ?? 'N/A'}</td>
-              <td>{row.team ?? 'N/A'}</td>
-              <td>{fmt(row.wins)}</td>
-              <td>{fmt(row.make_playoffs)}</td>
-              <td>{fmt(row.win_div)}</td>
-              <td>{fmt(row.win_conf)}</td>
-              <td>{fmt(row.win_sb)}</td>
-            </tr>
-          ))}
+          {data.map((row) => {
+            const name = row.team ?? '';
+            const slug = teamSlug(name);
+            const base = import.meta.env.BASE_URL || '/';
+            const defaultLogo = slug ? `${base}logos/${slug}.png` : '';
+            const url = row.logo_url ?? defaultLogo;
+            return (
+              <tr
+                data-conf={row.conf ?? ''}
+                data-division={row.division ?? ''}
+                data-team={row.team ?? ''}
+                data-wins={row.wins ?? ''}
+                data-make-playoffs={row.make_playoffs ?? ''}
+                data-win-div={row.win_div ?? ''}
+                data-win-conf={row.win_conf ?? ''}
+                data-win-sb={row.win_sb ?? ''}
+              >
+                <td>{row.conf ?? 'Inf'}</td>
+                <td>{row.division ?? 'Inf'}</td>
+                <td class="team-cell">
+                  {url ? (
+                    <img src={url} alt={`${name || 'Team'} logo`} class="team-logo" onerror="this.style.display='none'" />
+                  ) : null}
+                  <span>{name || 'Inf'}</span>
+                </td>
+                <td>{fmt(row.wins)}</td>
+                <td>{fmt(row.make_playoffs)}</td>
+                <td>{fmt(row.win_div)}</td>
+                <td>{fmt(row.win_conf)}</td>
+                <td>{fmt(row.win_sb)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     ) : (
@@ -65,60 +81,57 @@ function fmt(v) {
   </div>
 </div>
 
-<script type="module">
-// Client-side sorting for the standings table
-(function(){
-  const table = document.getElementById('standingsTable');
-  if (!table) return;
-  const thead = table.querySelector('thead');
-  const tbody = table.querySelector('tbody');
-  const headerCells = Array.from(thead.querySelectorAll('th.sortable'));
+<style>
+.team-cell { display: flex; align-items: center; gap: 0.5rem; }
+.team-logo { width: 24px; height: 24px; object-fit: contain; }
+</style>
 
-  // Build a rows array with parsed values and reference to the tr
+<script>
+(() => {
+  const table = document.querySelector('.standings');
+  if (!table) return;
+  const tbody = table.querySelector('tbody');
+  const headerCells = Array.from(table.querySelectorAll('thead th')) as HTMLElement[];
+
+  // build row model
   const rows = Array.from(tbody.querySelectorAll('tr')).map((tr) => {
-    const ds = tr.dataset;
-    return {
-      tr,
-      values: {
-        conf: ds.conf ?? '',
-        division: ds.division ?? '',
-        team: ds.team ?? '',
-        wins: ds.wins ?? '',
-        make_playoffs: ds.makePlayoffs ?? ds['makePlayoffs'] ?? ds['make-playoffs'] ?? ds['make_playoffs'] ?? ds['makePlayoffs'] ?? '',
-        win_div: ds.winDiv ?? ds['win-div'] ?? ds['win_div'] ?? ds['win_div'] ?? ds['winDiv'] ?? '',
-        win_conf: ds.winConf ?? ds['win-conf'] ?? ds['win_conf'] ?? ds['win_conf'] ?? ds['winConf'] ?? '',
-        win_sb: ds.winSb ?? ds['win-sb'] ?? ds['win_sb'] ?? ds['win_sb'] ?? ds['winSb'] ?? ''
-      }
+    const td = (i) => tr.children[i]?.textContent?.trim() || '';
+    const values = {
+      conf: tr.getAttribute('data-conf') || td(0),
+      division: tr.getAttribute('data-division') || td(1),
+      team: tr.getAttribute('data-team') || td(2),
+      wins: tr.getAttribute('data-wins') || td(3),
+      make_playoffs: tr.getAttribute('data-make-playoffs') || td(4),
+      win_div: tr.getAttribute('data-win-div') || td(5),
+      win_conf: tr.getAttribute('data-win-conf') || td(6),
+      win_sb: tr.getAttribute('data-win-sb') || td(7)
     };
+    return { tr, values };
   });
 
-  // Helper: parse numeric, treat missing or NaN as Infinity
   function parseNumeric(v) {
     if (v === undefined || v === null || v === '') return Infinity;
     const n = Number(v);
     return Number.isFinite(n) ? n : Infinity;
   }
 
-  // Helper: compare two rows by a key and dir
   function compareByKey(a, b, key, dir = 1) {
     const av = a.values[key];
     const bv = b.values[key];
-    // numeric keys
     if (['wins','make_playoffs','win_div','win_conf','win_sb'].includes(key)) {
       const an = parseNumeric(av);
       const bn = parseNumeric(bv);
-      return dir * (an - bn);
+      if (an !== bn) return dir * (an - bn);
+      return 0;
     }
-    // string compare
-    return dir * String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+    const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+    return dir * cmp;
   }
 
-  // State
   let sortKeys = ['division', 'win_div'];
-  let sortDirs = [1, 1]; // 1 = asc, -1 = desc
+  let sortDirs = [1, 1];
 
   function applySort() {
-    // sort a copy and re-append rows
     const copy = rows.slice();
     copy.sort((a, b) => {
       for (let i = 0; i < sortKeys.length; i++) {
@@ -130,48 +143,42 @@ function fmt(v) {
       return 0;
     });
 
-    // update ARIA and classes on headers (only primary key marked)
     headerCells.forEach((th) => {
       th.classList.remove('sorted-asc', 'sorted-desc');
       th.setAttribute('aria-sort', 'none');
     });
     const primaryKey = sortKeys[0];
     const primaryDir = sortDirs[0];
-    const primaryTh = headerCells.find(h => h.dataset.key === primaryKey);
+    const primaryTh = headerCells.find(h => (h as HTMLElement).dataset.key === primaryKey);
     if (primaryTh) {
       primaryTh.classList.add(primaryDir === 1 ? 'sorted-asc' : 'sorted-desc');
       primaryTh.setAttribute('aria-sort', primaryDir === 1 ? 'ascending' : 'descending');
     }
 
-    // Rebuild tbody
     const frag = document.createDocumentFragment();
     copy.forEach((r) => frag.appendChild(r.tr));
-    // Clear and append
     tbody.innerHTML = '';
     tbody.appendChild(frag);
   }
 
-  // Initial sort: default grouping by division then win_div (both asc)
   applySort();
 
-  // Header click handlers
   headerCells.forEach((th) => {
-    const key = th.dataset.key;
+    const key = (th as HTMLElement).dataset.key as string;
     th.addEventListener('click', () => {
       if (key === sortKeys[0]) {
-        // toggle primary direction
         sortDirs[0] = -sortDirs[0];
       } else {
-        // if clicking division, set multi-key with win_div secondary
         if (key === 'division') {
           sortKeys = ['division', 'win_div'];
           sortDirs = [1, 1];
-        } else if (key === 'win_conf' || key === 'win_sb') {
-          // replace entirely
-          sortKeys = [key];
+        } else if (key === 'win_conf') {
+          sortKeys = ['conf', 'win_conf'];
+          sortDirs = [1, 1];
+        } else if (key === 'win_sb') {
+          sortKeys = ['win_sb'];
           sortDirs = [1];
         } else {
-          // single-column sort for clicked key
           sortKeys = [key];
           sortDirs = [1];
         }
@@ -180,26 +187,24 @@ function fmt(v) {
     });
   });
 
-  // Buttons for explicit sorts
   const defaultBtn = document.getElementById('defaultSortBtn');
   const winConfBtn = document.getElementById('winConfBtn');
   const winSbBtn = document.getElementById('winSbBtn');
 
-  if (defaultBtn) defaultBtn.addEventListener('click', () => {
+  defaultBtn?.addEventListener('click', () => {
     sortKeys = ['division', 'win_div'];
     sortDirs = [1, 1];
     applySort();
   });
-  if (winConfBtn) winConfBtn.addEventListener('click', () => {
-    sortKeys = ['win_conf'];
-    sortDirs = [1];
+  winConfBtn?.addEventListener('click', () => {
+    sortKeys = ['conf', 'win_conf'];
+    sortDirs = [1, 1];
     applySort();
   });
-  if (winSbBtn) winSbBtn.addEventListener('click', () => {
+  winSbBtn?.addEventListener('click', () => {
     sortKeys = ['win_sb'];
     sortDirs = [1];
     applySort();
   });
-
 })();
 </script>
