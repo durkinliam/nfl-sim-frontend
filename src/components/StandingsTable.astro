@@ -1,5 +1,4 @@
 ---
-// Props: data: Array<Record<string, any>>
 const { data } = Astro.props;
 
 function fmt(v: unknown): string {
@@ -29,10 +28,9 @@ function teamSlug(team: unknown): string {
       <table class="standings">
         <thead>
           <tr>
-            <th data-key="conf" class="sortable" scope="col" aria-sort="none">Conf</th>
+            <th data-key="conf" class="sortable" scope="col" aria-sort="none">Conference</th>
             <th data-key="division" class="sortable" scope="col" aria-sort="none">Division</th>
             <th data-key="team" class="sortable" scope="col" aria-sort="none">Team</th>
-            <th data-key="wins" class="sortable" scope="col" aria-sort="none">Regular Season Wins</th>
             <th data-key="make_playoffs" class="sortable" scope="col" aria-sort="none">Make Playoffs</th>
             <th data-key="win_div" class="sortable" scope="col" aria-sort="none">Win Division</th>
             <th data-key="win_conf" class="sortable" scope="col" aria-sort="none">Win Conference</th>
@@ -51,7 +49,6 @@ function teamSlug(team: unknown): string {
                 data-conf={row.conf ?? ''}
                 data-division={row.division ?? ''}
                 data-team={row.team ?? ''}
-                data-wins={row.wins ?? ''}
                 data-make-playoffs={row.make_playoffs ?? ''}
                 data-win-div={row.win_div ?? ''}
                 data-win-conf={row.win_conf ?? ''}
@@ -65,7 +62,6 @@ function teamSlug(team: unknown): string {
                   ) : null}
                   <span>{name || 'Inf'}</span>
                 </td>
-                <td>{fmt(row.wins)}</td>
                 <td>{fmt(row.make_playoffs)}</td>
                 <td>{fmt(row.win_div)}</td>
                 <td>{fmt(row.win_conf)}</td>
@@ -93,18 +89,16 @@ function teamSlug(team: unknown): string {
   const tbody = table.querySelector('tbody');
   const headerCells = Array.from(table.querySelectorAll('thead th')) as HTMLElement[];
 
-  // build row model
   const rows = Array.from(tbody.querySelectorAll('tr')).map((tr) => {
     const td = (i) => tr.children[i]?.textContent?.trim() || '';
     const values = {
       conf: tr.getAttribute('data-conf') || td(0),
       division: tr.getAttribute('data-division') || td(1),
       team: tr.getAttribute('data-team') || td(2),
-      wins: tr.getAttribute('data-wins') || td(3),
-      make_playoffs: tr.getAttribute('data-make-playoffs') || td(4),
-      win_div: tr.getAttribute('data-win-div') || td(5),
-      win_conf: tr.getAttribute('data-win-conf') || td(6),
-      win_sb: tr.getAttribute('data-win-sb') || td(7)
+      make_playoffs: tr.getAttribute('data-make-playoffs') || td(3),
+      win_div: tr.getAttribute('data-win-div') || td(4),
+      win_conf: tr.getAttribute('data-win-conf') || td(5),
+      win_sb: tr.getAttribute('data-win-sb') || td(6)
     };
     return { tr, values };
   });
