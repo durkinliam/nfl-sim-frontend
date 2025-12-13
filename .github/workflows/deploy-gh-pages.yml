@@ -31,7 +31,7 @@ jobs:
 
       - name: Build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.UPSTREAM_REPO_TOKEN }}
         run: npm run build
 
       - name: List built files (debug)

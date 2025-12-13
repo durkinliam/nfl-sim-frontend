@@ -2,8 +2,14 @@
 import StandingsTable from '../components/StandingsTable.astro';
 import '../styles/standings.css';
 
-const RAW_URL = 'https://raw.githubusercontent.com/durkinliam/nfl-sim-r/refs/heads/main/outright_output.json';
-const COMMITS_API = 'https://api.github.com/repos/durkinliam/nfl-sim-r/commits?path=outright_output.json&per_page=1';
+const OWNER = 'durkinliam';
+const REPO = 'nfl-sim-r';
+const BRANCH = 'main';
+const FILE_PATH = 'outright_output.json';
+
+const RAW_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/refs/heads/${BRANCH}/${FILE_PATH}`;
+const CONTENTS_API = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}?ref=${BRANCH}`;
+const COMMITS_API = `https://api.github.com/repos/${OWNER}/${REPO}/commits?path=${FILE_PATH}&per_page=1`;
 
 let data = null;
 let lastCommitDateFormatted = null;
@@ -24,8 +30,25 @@ async function safeFetchJson(url, opts) {
   }
 }
 
+async function fetchOutrightData() {
+  const headers = {};
+  if (process.env.GITHUB_TOKEN) headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
+  const contents = await safeFetchJson(CONTENTS_API, { headers });
+  if (contents && contents.content && contents.encoding === 'base64') {
+    try {
+      const decoded = Buffer.from(contents.content, 'base64').toString('utf-8');
+      const parsed = JSON.parse(decoded);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  return null;
+}
+
 try {
-  const raw = await safeFetchJson(RAW_URL, undefined);
+  const raw = await fetchOutrightData();
   if (raw && Array.isArray(raw)) {
     data = raw.map((r) => ({ ...r }));
 
