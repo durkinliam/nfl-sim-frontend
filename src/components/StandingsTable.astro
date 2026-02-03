@@ -82,12 +82,13 @@ function teamSlug(team: unknown): string {
 .team-logo { width: 24px; height: 24px; object-fit: contain; }
 </style>
 
-<script>
+<script type="module">
+import { compareByKey, resolveTableElements } from '../lib/standings-utils.js';
+
 (() => {
-  const table = document.querySelector('.standings');
-  if (!table) return;
-  const tbody = table.querySelector('tbody');
-  const headerCells = Array.from(table.querySelectorAll('thead th')) as HTMLElement[];
+  const resolved = resolveTableElements(document);
+  if (!resolved) return;
+  const { tbody, headerCells } = resolved;
 
   const rows = Array.from(tbody.querySelectorAll('tr')).map((tr) => {
     const td = (i) => tr.children[i]?.textContent?.trim() || '';
@@ -103,23 +104,8 @@ function teamSlug(team: unknown): string {
     return { tr, values };
   });
 
-  function parseNumeric(v) {
-    if (v === undefined || v === null || v === '') return Infinity;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : Infinity;
-  }
-
-  function compareByKey(a, b, key, dir = 1) {
-    const av = a.values[key];
-    const bv = b.values[key];
-    if (['wins','make_playoffs','win_div','win_conf','win_sb'].includes(key)) {
-      const an = parseNumeric(av);
-      const bn = parseNumeric(bv);
-      if (an !== bn) return dir * (an - bn);
-      return 0;
-    }
-    const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
-    return dir * cmp;
+  function compareRowsByKey(a, b, key, dir = 1) {
+    return compareByKey(a.values, b.values, key, dir);
   }
 
   let sortKeys = ['division', 'win_div'];
@@ -131,7 +117,7 @@ function teamSlug(team: unknown): string {
       for (let i = 0; i < sortKeys.length; i++) {
         const k = sortKeys[i];
         const d = sortDirs[i] ?? 1;
-        const cmp = compareByKey(a, b, k, d);
+        const cmp = compareRowsByKey(a, b, k, d);
         if (cmp !== 0) return cmp;
       }
       return 0;
@@ -143,7 +129,7 @@ function teamSlug(team: unknown): string {
     });
     const primaryKey = sortKeys[0];
     const primaryDir = sortDirs[0];
-    const primaryTh = headerCells.find(h => (h as HTMLElement).dataset.key === primaryKey);
+    const primaryTh = headerCells.find((h) => h?.dataset?.key === primaryKey);
     if (primaryTh) {
       primaryTh.classList.add(primaryDir === 1 ? 'sorted-asc' : 'sorted-desc');
       primaryTh.setAttribute('aria-sort', primaryDir === 1 ? 'ascending' : 'descending');
@@ -158,7 +144,8 @@ function teamSlug(team: unknown): string {
   applySort();
 
   headerCells.forEach((th) => {
-    const key = (th as HTMLElement).dataset.key as string;
+    const key = th?.dataset?.key;
+    if (!key) return;
     th.addEventListener('click', () => {
       if (key === sortKeys[0]) {
         sortDirs[0] = -sortDirs[0];
