@@ -1,6 +1,7 @@
 ---
 import StandingsTable from '../components/StandingsTable.astro';
 import '../styles/standings.css';
+import { decodeContentsJson } from '../lib/github-contents.js';
 
 const OWNER = 'durkinliam';
 const REPO = 'nfl-sim-r';
@@ -34,17 +35,12 @@ async function fetchOutrightData() {
   const headers = {};
   if (process.env.GITHUB_TOKEN) headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
   const contents = await safeFetchJson(CONTENTS_API, { headers });
-  if (contents && contents.content && contents.encoding === 'base64') {
-    try {
-      const decoded = Buffer.from(contents.content, 'base64').toString('utf-8');
-      const parsed = JSON.parse(decoded);
-      if (Array.isArray(parsed)) return parsed;
-    } catch (_) {
-      // ignore
-    }
-  }
+  const decoded = decodeContentsJson(contents);
+  if (Array.isArray(decoded)) return decoded;
 
-  return null;
+  const rawUrl = contents?.download_url ?? RAW_URL;
+  const raw = await safeFetchJson(rawUrl);
+  return Array.isArray(raw) ? raw : null;
 }
 
 try {
